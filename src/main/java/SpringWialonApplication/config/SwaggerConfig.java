@@ -24,7 +24,7 @@ public class SwaggerConfig {
         return new Docket(DocumentationType.SWAGGER_2)
                 .apiInfo(apiInfo())
                 .select()
-                .apis (RequestHandlerSelectors.basePackage ("SpringServiseComlexApplication.restController")) // Пакет сканирования Swagger
+                .apis (RequestHandlerSelectors.basePackage ("SpringWialonApplication.restController")) // Пакет сканирования Swagger
                 .paths(PathSelectors.any())
                 .build();
     }
@@ -37,9 +37,9 @@ public class SwaggerConfig {
     private ApiInfo apiInfo() {
         return new ApiInfoBuilder()
                 //Заголовок страницы
-                .title ("Spring Boot в сочетании с Swagger2 для создания RESTful API")
+                .title ("Описание запросов RESTful API")
                 //Описание
-                .description ("Простой и элегантный стиль Restful")
+                .description ("Простой Restful")
                 //номер версии
                 .version("1.0")
                 .build();
