@@ -1,5 +1,6 @@
 package SpringWialonApplication.service;
 
+import SpringWialonApplication.repository.TrailersRepository;
 import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -16,13 +17,19 @@ public class ServiceTelegramBot extends TelegramLongPollingBot {
 
     private String botUsername;
     private String botToken;
+    private final TrailersRepository trailersRepository;
+    private final ServiceWialon serviceWialon;
+    private final ServiceParcer serviceParcer;
 
     public ServiceTelegramBot(
             TelegramBotsApi telegramBotsApi,
             @Value("${botName}") String botUsername,
-            @Value("${telegramToken}") String botToken) throws TelegramApiException {
+            @Value("${telegramToken}") String botToken, TrailersRepository trailersRepository, ServiceWialon serviceWialon, ServiceParcer serviceParcer) throws TelegramApiException {
         this.botUsername = botUsername;
         this.botToken = botToken;
+        this.trailersRepository = trailersRepository;
+        this.serviceWialon = serviceWialon;
+        this.serviceParcer = serviceParcer;
         telegramBotsApi.registerBot(this);
     }
 
@@ -31,15 +38,33 @@ public class ServiceTelegramBot extends TelegramLongPollingBot {
         // We check if the update has a message and the message has text
         if (update.hasMessage() && update.getMessage().hasText()) {
 
-            sendMassage(update.getMessage().getChatId(), "Hi");
-            System.out.println(update.getMessage().getFrom().getFirstName() + " боту написал: " + update.getMessage().getText());
+            String inputText = update.getMessage().getText();
+
+            System.out.println(update.getMessage().getFrom().getFirstName() + " боту написал: " + inputText);
+
+            if (inputText.startsWith("help")) {
+                sendMassage(update.getMessage().getChatId(), "Пример использования: report 24860811");
+            }
+
+            if (inputText.startsWith("report") ) {
+                if (inputText.length()>14) {
+                    int objectId = Integer.parseInt(inputText.substring(7,15));
+                    if (trailersRepository.countWialonId(objectId)>0) {
+                        StringBuffer message = serviceParcer.objectInfo(serviceWialon.infoObject(objectId));
+                        sendMassage(update.getMessage().getChatId(), String.valueOf(message));
+                    }
+                }
+
+            }
+
 
         }
     }
 
     public void sendMassage(long idChat, String textMessage) {
-        System.out.println("Send message: " + textMessage);
+//        System.out.println("Send message: " + textMessage);
         SendMessage message = new SendMessage();
+        message.enableMarkdown(true);
         message.setChatId(idChat);
         message.setText(textMessage);
 
@@ -49,6 +74,7 @@ public class ServiceTelegramBot extends TelegramLongPollingBot {
             e.printStackTrace();
         }
     }
+
 
 
 }

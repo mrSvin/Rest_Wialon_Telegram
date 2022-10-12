@@ -3,6 +3,7 @@ package SpringWialonApplication.restController;
 import SpringWialonApplication.api.response.WabcoReportResponse;
 import SpringWialonApplication.service.ServiceTelegramBot;
 import SpringWialonApplication.service.ServiceWialon;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 
@@ -18,15 +19,11 @@ public class RestApiWialon {
         this.serviceWialon = serviceWialon;
     }
 
-    @GetMapping("/updateData")
-    private String update() {
-        serviceWialon.writeData();
-        return "ok";
-    }
 
-    @GetMapping("/infoData")
-    private Iterable info() {
-        return serviceWialon.infoData();
+
+    @GetMapping(value = "/infoData", produces = MediaType.APPLICATION_JSON_VALUE)
+    private String info() {
+        return serviceWialon.findALlTrailersWialon();
     }
 
     @GetMapping("/countData")

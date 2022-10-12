@@ -16,5 +16,10 @@ public class Trailers {
     private String name;
     @Column(columnDefinition = "INT")
     private Integer wialon_id;
+    @Column(columnDefinition = "INT")
+    private Integer mileage;
+    @Column(columnDefinition = "INT")
+    private Integer last_connect;
+
 
 }
