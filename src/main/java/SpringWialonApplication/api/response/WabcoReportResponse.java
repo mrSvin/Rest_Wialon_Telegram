@@ -1,7 +1,6 @@
 package SpringWialonApplication.api.response;
 
 import lombok.Data;
-
 import java.util.List;
 
 @Data
@@ -13,5 +12,6 @@ public class WabcoReportResponse {
     private String voltage;
     private String possitions;
     private String speed;
+    private String error;
 
 }

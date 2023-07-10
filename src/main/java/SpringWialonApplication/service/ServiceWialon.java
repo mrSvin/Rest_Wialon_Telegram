@@ -3,10 +3,10 @@ package SpringWialonApplication.service;
 import SpringWialonApplication.api.response.WabcoReportResponse;
 import SpringWialonApplication.repository.TrailersRepository;
 import lombok.SneakyThrows;
+import lombok.Synchronized;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class ServiceWialon {
@@ -24,71 +25,75 @@ public class ServiceWialon {
     private String uid = "";
     private boolean trigerCheckUid = true;
 
-    private OkHttpClient client;
-    private Request request;
-    Response response;
-    long unixTime;
+    long unixTime = 20000;
 
     String itemsCache = "";
-    long unixCashTime;
+    long unixCashTime = 0;
 
-    private final TrailersRepository trailersRepository;
+    private final JwtService jwtService;
 
-    private ServiceWialon(TrailersRepository trailersRepository) {
-        this.trailersRepository = trailersRepository;
+    private ServiceWialon(JwtService jwtService) {
+        this.jwtService = jwtService;
     }
 
     private String findEid() {
 
-        client = new OkHttpClient();
-        request = new Request.Builder()
+        OkHttpClient client = new OkHttpClient().newBuilder().connectTimeout(3, TimeUnit.SECONDS).build();
+        Request request = new Request.Builder()
                 .url("https://hst-api.wialon.com/wialon/ajax.html?svc=token/login&params={\"token\":\"" + token + "\"}")
                 .method("GET", null)
                 .build();
 
-        response = null;
         try {
-            response = client.newCall(request).execute();
-//            System.out.println(response.body().string());
-
-            //Получаяем всё сообщение запроса
+            Response response = client.newCall(request).execute();
             JSONObject jsonResponse = new JSONObject(response.body().string());
-//            System.out.println(jsonResponse);
             String eid = jsonResponse.getString("eid");
             System.out.println("eid:" + eid);
             return eid;
 
         } catch (IOException | JSONException e) {
             e.printStackTrace();
-            return null;
+            return "";
         }
 
     }
 
-    public String findALlTrailersWialon() {
+    public String findAllTrailersWialon(String jwtToken) {
+
+        String checkJwt = jwtService.checkJWT(jwtToken, "all");
+        if (checkJwt.equals("error")) {
+            return "invalid token";
+        } else if (checkJwt.equals("no rights")) {
+            return "no rights";
+        }
 
         checkUpdateUid();
+        if (uid.length()<5) {
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
 
         long timeNow = System.currentTimeMillis() / 1000L;
         if (timeNow - unixCashTime > 600 || itemsCache.equals("")) {
             unixCashTime = timeNow;
             System.out.println("Выполнен новый запрос на получение списка ППЦ");
             try {
-                client = new OkHttpClient();
-                request = new Request.Builder()
+                OkHttpClient client = new OkHttpClient();
+                Request request = new Request.Builder()
                         .url("https://hst-api.wialon.com/wialon/ajax.html?svc=core/search_items&params={\"spec\":{\"itemsType\":\"avl_unit\",\"propName\":\"sys_name\",\"propValueMask\":\"*\",\"sortType\":\"sys_name\"},\"force\":1,\"flags\":9501,\"from\":0,\"to\":0}&sid=" + uid)
                         .method("GET", null)
                         .build();
 
-                response = null;
-
-                response = client.newCall(request).execute();
+                System.out.println("uid findALlTrailersWialon: " + uid);
+                Response response = client.newCall(request).execute();
                 JSONObject jsonResponse = new JSONObject(response.body().string());
                 itemsCache = jsonResponse.getString("items");
 
             } catch (IOException | JSONException e) {
                 e.printStackTrace();
-                uid = "";
                 return null;
             }
 
@@ -100,14 +105,24 @@ public class ServiceWialon {
 
     }
 
+    public String infoObject(int idObject, String jwtToken) {
 
-    public int countData() {
-        return trailersRepository.countWialonTrailers();
-    }
-
-    public String infoObject(int idObject) {
+        String checkJwt = jwtService.checkJWT(jwtToken, "all");
+        if (checkJwt.equals("error")) {
+            return "invalid token";
+        } else if (checkJwt.equals("no rights")) {
+            return "no rights";
+        }
 
         checkUpdateUid();
+        if (uid.length()<5) {
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
         System.out.println("Выполнен запрос о получении информации объекта " + idObject);
 
         OkHttpClient client = new OkHttpClient();
@@ -116,40 +131,45 @@ public class ServiceWialon {
                 .method("GET", null)
                 .build();
 
-        Response response = null;
+        Response response;
 
         try {
             response = client.newCall(request).execute();
 //            System.out.println(response.body().string());
             JSONObject jsonResponse = new JSONObject(response.body().string());
-
+            System.out.println("uid infoObject: " + uid);
             return jsonResponse.getString("item");
 
         } catch (IOException | JSONException e) {
-//            e.printStackTrace();
+            e.printStackTrace();
             System.out.println("error object:" + idObject);
-            uid = "";
             return null;
         }
 
     }
 
-    public String reportBase(int idObject, int startTime, int lastTime) {
+    public String reportBase(int idObject, int startTime, int lastTime, String jwtToken) {
+
+        String checkJwt = jwtService.checkJWT(jwtToken, "all");
+        if (checkJwt.equals("error")) {
+            return "invalid token";
+        } else if (checkJwt.equals("no rights")) {
+            return "no rights";
+        }
 
         checkUpdateUid();
 
-        client = new OkHttpClient();
-        request = new Request.Builder()
+        OkHttpClient client = new OkHttpClient();
+        Request request = new Request.Builder()
                 .url("https://hst-api.wialon.com/wialon/ajax.html?svc=report/exec_report&params={\"reportResourceId\":17376348," +
                         "\"reportTemplateId\":1,\"reportObjectId\":" + idObject + ",\"reportObjectSecId\":0,\"interval\":" +
                         "{\"from\":" + startTime + ",\"to\":" + lastTime + ",\"flags\":0}}&sid=" + uid)
                 .method("GET", null)
                 .build();
 
-        response = null;
 
         try {
-            response = client.newCall(request).execute();
+            Response response = client.newCall(request).execute();
 //            System.out.println(response.body().string());
             JSONObject jsonResponse = new JSONObject(response.body().string());
 
@@ -160,15 +180,23 @@ public class ServiceWialon {
         } catch (IOException | JSONException e) {
 //            e.printStackTrace();
             System.out.println("error object:" + idObject);
-            uid = "";
             return null;
         }
 
     }
 
-    public WabcoReportResponse reportWabco(int idObject, int startTime, int lastTime) {
+    public WabcoReportResponse reportWabco(int idObject, int startTime, int lastTime, String jwtToken) {
 
         WabcoReportResponse wabcoReportResponse = new WabcoReportResponse();
+
+        String checkJwt = jwtService.checkJWT(jwtToken, "all");
+        if (checkJwt.equals("error")) {
+            wabcoReportResponse.setError("invalid token");
+            return wabcoReportResponse;
+        } else if (checkJwt.equals("no rights")) {
+            wabcoReportResponse.setError("no rights");
+            return wabcoReportResponse;
+        }
 
         try {
             checkUpdateUid();
@@ -205,13 +233,14 @@ public class ServiceWialon {
             wabcoReportResponse.setPressuareWheels(reportListWabco(4));
             //Заполняем скорость
             wabcoReportResponse.setSpeed(reportIndexWabco(7));
+            //error nil
+            wabcoReportResponse.setError("null");
 
             return wabcoReportResponse;
 
         } catch (Exception e) {
 //            e.printStackTrace();
             System.out.println("Ошибка в выполнении запроса: " + idObject + " " + startTime + " " + lastTime);
-            uid = "";
             return wabcoReportResponse;
         }
 
@@ -221,6 +250,7 @@ public class ServiceWialon {
 
         try {
             checkUpdateUid();
+            OkHttpClient client = new OkHttpClient();
             Request request = new Request.Builder()
                     .url("https://hst-api.wialon.com/wialon/ajax.html?svc=report/render_json&params=" +
                             "{\"attachmentIndex\":" + indexReport + ",\"width\":1342,\"useCrop\":1," +
@@ -245,6 +275,7 @@ public class ServiceWialon {
 
         try {
             checkUpdateUid();
+            OkHttpClient client = new OkHttpClient();
             Request request = new Request.Builder()
                     .url("https://hst-api.wialon.com/wialon/ajax.html?svc=report/render_json&params=" +
                             "{\"attachmentIndex\":" + indexReport + ",\"width\":1342,\"useCrop\":1," +
@@ -266,7 +297,7 @@ public class ServiceWialon {
 
     private List<String> reportListWabco(int indexReport) {
         try {
-
+            OkHttpClient client = new OkHttpClient();
             Request request = new Request.Builder()
                     .url("https://hst-api.wialon.com/wialon/ajax.html?svc=report/render_json&params=" +
                             "{\"attachmentIndex\":" + indexReport + ",\"width\":1342,\"useCrop\":1," +
@@ -292,26 +323,18 @@ public class ServiceWialon {
 
     }
 
+
     @SneakyThrows
+    @Synchronized
+    //обновлям uid только раз в определенный период, делаем синхронизацию чтобы uid не обновляли несколько потоков сразу
     private void checkUpdateUid() {
-
-        if (trigerCheckUid) {
-            trigerCheckUid=false;
-            long timeNow = System.currentTimeMillis() / 1000L;
-            if (timeNow - unixTime > 600) {
-                uid = findEid();
-                unixTime = timeNow;
-                System.out.println("Выполнен запрос uid в связи с превышением времени");
-            }
-
-            if (uid.equals("")) {
-                uid = findEid();
-                unixTime = timeNow;
-                System.out.println("Выполнен запрос uid в связи с его отсутствием");
-            }
-            trigerCheckUid=true;
-        } else {
-            Thread.sleep(100);
+        long timeNow = System.currentTimeMillis() / 1000L;
+        long timeLast = timeNow - unixTime;
+        System.out.println("Пройденное время с последнего запроса uid: " + timeLast);
+        if ( timeLast > 420 || uid.equals("")) {
+            unixTime = timeNow;
+            System.out.println("Выполнен новый запрос uid");
+            uid = findEid();
         }
 
     }

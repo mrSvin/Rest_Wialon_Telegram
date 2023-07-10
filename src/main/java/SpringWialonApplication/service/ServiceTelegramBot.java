@@ -50,7 +50,7 @@ public class ServiceTelegramBot extends TelegramLongPollingBot {
                 if (inputText.length()>14) {
                     int objectId = Integer.parseInt(inputText.substring(7,15));
                     if (trailersRepository.countWialonId(objectId)>0) {
-                        StringBuffer message = serviceParcer.objectInfo(serviceWialon.infoObject(objectId));
+                        StringBuffer message = serviceParcer.objectInfo(serviceWialon.infoObject(objectId, "need token!"));
                         sendMassage(update.getMessage().getChatId(), String.valueOf(message));
                     }
                 }
