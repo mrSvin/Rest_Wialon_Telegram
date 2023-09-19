@@ -1,17 +1,15 @@
 package SpringWialonApplication.api.response;
 
 import lombok.Data;
-import java.util.List;
 
 @Data
 public class WabcoReportResponse {
 
-    private List<String> loadAxle;
-    private String pressuareSystem;
-    private List<String> pressuareWheels;
     private String voltage;
-    private String possitions;
+    private String possitionsX;
+    private String possitionsY;
     private String speed;
+    private String time;
     private String error;
 
 }

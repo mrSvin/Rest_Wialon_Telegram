@@ -5,6 +5,8 @@ import SpringWialonApplication.service.ServiceWialon;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
+
 @CrossOrigin(origins = {"*"}, maxAge = 3600)
 @RestController
 @RequestMapping("/api")
@@ -32,7 +34,7 @@ public class RestApiWialon {
     private String reportBaseObject(@PathVariable Integer idObject,
                                     @PathVariable Integer startTime,
                                     @PathVariable Integer lastTime,
-                                    @RequestHeader("Authorization") String jwtBearer) {
+                                    @RequestHeader("Authorization") String jwtBearer) throws IOException {
         return serviceWialon.reportBase(idObject, startTime, lastTime, jwtBearer);
     }
 
@@ -40,7 +42,7 @@ public class RestApiWialon {
     private WabcoReportResponse reportWabcoObject(@PathVariable Integer idObject,
                                                   @PathVariable Integer startTime,
                                                   @PathVariable Integer lastTime,
-                                                  @RequestHeader("Authorization") String jwtBearer) {
+                                                  @RequestHeader("Authorization") String jwtBearer) throws IOException {
         return serviceWialon.reportWabco(idObject, startTime, lastTime, jwtBearer);
     }
 

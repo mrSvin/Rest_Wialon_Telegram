@@ -26,8 +26,7 @@ public class SwaggerConfig {
                 .select()
                 .apis (RequestHandlerSelectors.basePackage ("SpringWialonApplication.restController")) // Пакет сканирования Swagger
                 .paths(PathSelectors.any())
-                .build();
-    }
+                .build(); }
 
     /**
      * Создайте основную информацию API (основная информация будет отображаться на странице документа)

@@ -1,7 +1,6 @@
 package SpringWialonApplication.service;
 
 import SpringWialonApplication.api.response.WabcoReportResponse;
-import SpringWialonApplication.repository.TrailersRepository;
 import lombok.SneakyThrows;
 import lombok.Synchronized;
 import okhttp3.OkHttpClient;
@@ -36,16 +35,16 @@ public class ServiceWialon {
         this.jwtService = jwtService;
     }
 
-    private String findEid() {
+    private String findEid() throws IOException {
 
         OkHttpClient client = new OkHttpClient().newBuilder().connectTimeout(3, TimeUnit.SECONDS).build();
         Request request = new Request.Builder()
                 .url("https://hst-api.wialon.com/wialon/ajax.html?svc=token/login&params={\"token\":\"" + token + "\"}")
                 .method("GET", null)
                 .build();
-
+        Response response = client.newCall(request).execute();
         try {
-            Response response = client.newCall(request).execute();
+
             JSONObject jsonResponse = new JSONObject(response.body().string());
             String eid = jsonResponse.getString("eid");
             System.out.println("eid:" + eid);
@@ -54,6 +53,10 @@ public class ServiceWialon {
         } catch (IOException | JSONException e) {
             e.printStackTrace();
             return "";
+        } finally {
+            if (response != null) {
+                response.close();
+            }
         }
 
     }
@@ -68,7 +71,7 @@ public class ServiceWialon {
         }
 
         checkUpdateUid();
-        if (uid.length()<5) {
+        if (uid.length() < 5) {
             try {
                 Thread.sleep(2000);
             } catch (InterruptedException e) {
@@ -115,7 +118,7 @@ public class ServiceWialon {
         }
 
         checkUpdateUid();
-        if (uid.length()<5) {
+        if (uid.length() < 5) {
             try {
                 Thread.sleep(2000);
             } catch (InterruptedException e) {
@@ -148,7 +151,7 @@ public class ServiceWialon {
 
     }
 
-    public String reportBase(int idObject, int startTime, int lastTime, String jwtToken) {
+    public String reportBase(int idObject, int startTime, int lastTime, String jwtToken) throws IOException {
 
         String checkJwt = jwtService.checkJWT(jwtToken, "all");
         if (checkJwt.equals("error")) {
@@ -167,9 +170,9 @@ public class ServiceWialon {
                 .method("GET", null)
                 .build();
 
-
+        Response response = client.newCall(request).execute();
         try {
-            Response response = client.newCall(request).execute();
+
 //            System.out.println(response.body().string());
             JSONObject jsonResponse = new JSONObject(response.body().string());
 
@@ -181,11 +184,15 @@ public class ServiceWialon {
 //            e.printStackTrace();
             System.out.println("error object:" + idObject);
             return null;
+        } finally {
+            if (response != null) {
+                response.close();
+            }
         }
 
     }
 
-    public WabcoReportResponse reportWabco(int idObject, int startTime, int lastTime, String jwtToken) {
+    public WabcoReportResponse reportWabco(int idObject, int startTime, int lastTime, String jwtToken) throws IOException {
 
         WabcoReportResponse wabcoReportResponse = new WabcoReportResponse();
 
@@ -198,127 +205,98 @@ public class ServiceWialon {
             return wabcoReportResponse;
         }
 
+        int period = lastTime - startTime;
+        if (period > 2678400) {
+            wabcoReportResponse.setError("period more than 31 days");
+            return wabcoReportResponse;
+        }
+        System.out.println(period);
+
+        checkUpdateUid();
+
+        OkHttpClient client = new OkHttpClient.Builder()
+                .readTimeout(30, TimeUnit.SECONDS)
+                .build();
+
+        Request request = new Request.Builder()
+                .url("https://hst-api.wialon.com/wialon/ajax.html?svc=report/exec_report&params={\"reportResourceId\":17376348," +
+                        "\"reportTemplateId\":15,\"reportObjectId\":" + idObject + ",\"reportObjectSecId\":0,\"interval\":" +
+                        "{\"from\":" + startTime + ",\"to\":" + lastTime + ",\"flags\":0}}&sid=" + uid)
+                .build();
+
+        Response response = client.newCall(request).execute();
+
         try {
-            checkUpdateUid();
 
-            OkHttpClient client = new OkHttpClient();
-
-            Request request = new Request.Builder()
-                    .url("https://hst-api.wialon.com/wialon/ajax.html?svc=report/exec_report&params={\"reportResourceId\":17376348," +
-                            "\"reportTemplateId\":11,\"reportObjectId\":" + idObject + ",\"reportObjectSecId\":0,\"interval\":" +
-                            "{\"from\":" + startTime + ",\"to\":" + lastTime + ",\"flags\":0}}&sid=" + uid)
-                    .method("GET", null)
-                    .build();
-
-            client.newCall(request).execute();
-
-            request = new Request.Builder()
-                    .url("https://hst-api.wialon.com/wialon/ajax.html?svc=report/get_result_chart&params=" +
-                            "{\"attachmentIndex\":3,\"action\":0,\"width\":1342,\"height\":201,\"autoScaleY\":0,\"pixelFrom\":0," +
-                            "\"pixelTo\":0,\"flags\":4356}&sid=" + uid)
-                    .method("GET", null)
-                    .build();
-
-            client.newCall(request).execute();
-
-            //Заполняем нагрузку на оси
-            wabcoReportResponse.setLoadAxle(reportListWabco(3));
-            //Заполняем давление в пневмосистеме
-            wabcoReportResponse.setPressuareSystem(reportIndexWabco(0));
             //Заполняем напряжение
-            wabcoReportResponse.setVoltage(reportIndexWabco(5));
+            wabcoReportResponse.setVoltage(reportIndexWabco(0, startTime, lastTime, "voltage"));
             //Заполняем позиции
-            wabcoReportResponse.setPossitions(reportPositions(5));
-            //Заполняем давление в колесах
-            wabcoReportResponse.setPressuareWheels(reportListWabco(4));
+            wabcoReportResponse.setPossitionsX(reportIndexWabco(0, startTime, lastTime, "possitions_x"));
+            wabcoReportResponse.setPossitionsY(reportIndexWabco(0, startTime, lastTime, "possitions_y"));
             //Заполняем скорость
-            wabcoReportResponse.setSpeed(reportIndexWabco(7));
+            wabcoReportResponse.setSpeed(reportIndexWabco(1, startTime, lastTime, "speed"));
+            //Заполняем время
+            wabcoReportResponse.setTime(reportIndexWabco(0, startTime, lastTime, "time"));
             //error nil
             wabcoReportResponse.setError("null");
 
             return wabcoReportResponse;
 
         } catch (Exception e) {
-//            e.printStackTrace();
+            e.printStackTrace();
             System.out.println("Ошибка в выполнении запроса: " + idObject + " " + startTime + " " + lastTime);
             return wabcoReportResponse;
+        } finally {
+            if (response != null) {
+                response.close();
+            }
         }
 
     }
 
-    private String reportIndexWabco(int indexReport) {
+    private String reportIndexWabco(int indexReport, int startTime, int lastTime, String param) throws IOException {
+
+        checkUpdateUid();
+        OkHttpClient client = new OkHttpClient();
+        Request request = new Request.Builder()
+                .url("https://hst-api.wialon.com/wialon/ajax.html?svc=report/render_json&params=" +
+                        "{\"attachmentIndex\":" + indexReport + ",\"width\":1342,\"useCrop\":1," +
+                        "\"cropBegin\":" + startTime + ",\"cropEnd\":" + lastTime + "}&sid=" + uid)
+                .method("GET", null)
+                .build();
+
+        Response response = client.newCall(request).execute();
 
         try {
-            checkUpdateUid();
-            OkHttpClient client = new OkHttpClient();
-            Request request = new Request.Builder()
-                    .url("https://hst-api.wialon.com/wialon/ajax.html?svc=report/render_json&params=" +
-                            "{\"attachmentIndex\":" + indexReport + ",\"width\":1342,\"useCrop\":1," +
-                            "\"cropBegin\":1663920741,\"cropEnd\":1663932741}&sid=" + uid)
-                    .method("GET", null)
-                    .build();
 
-            Response response = client.newCall(request).execute();
-            JSONObject jsonResponse = new JSONObject(response.body().string());
-            JSONObject datasets = jsonResponse.getJSONObject("datasets");
-
-            JSONObject data = datasets.getJSONObject("0").getJSONObject("data");
-            return data.toString();
-        } catch (JSONException | IOException e) {
-            e.printStackTrace();
-            return null;
-        }
-
-    }
-
-    private String reportPositions(int indexReport) {
-
-        try {
-            checkUpdateUid();
-            OkHttpClient client = new OkHttpClient();
-            Request request = new Request.Builder()
-                    .url("https://hst-api.wialon.com/wialon/ajax.html?svc=report/render_json&params=" +
-                            "{\"attachmentIndex\":" + indexReport + ",\"width\":1342,\"useCrop\":1," +
-                            "\"cropBegin\":1663920741,\"cropEnd\":1663932741}&sid=" + uid)
-                    .method("GET", null)
-                    .build();
-
-            Response response = client.newCall(request).execute();
             JSONObject jsonResponse = new JSONObject(response.body().string());
 
-            return jsonResponse.getJSONObject("possitions").toString();
-
-        } catch (JSONException | IOException e) {
-            e.printStackTrace();
-            return null;
-        }
-
-    }
-
-    private List<String> reportListWabco(int indexReport) {
-        try {
-            OkHttpClient client = new OkHttpClient();
-            Request request = new Request.Builder()
-                    .url("https://hst-api.wialon.com/wialon/ajax.html?svc=report/render_json&params=" +
-                            "{\"attachmentIndex\":" + indexReport + ",\"width\":1342,\"useCrop\":1," +
-                            "\"cropBegin\":1663920741,\"cropEnd\":1663932741}&sid=" + uid)
-                    .method("GET", null)
-                    .build();
-
-            Response response = client.newCall(request).execute();
-            JSONObject jsonResponse = new JSONObject(response.body().string());
-            JSONObject datasets = jsonResponse.getJSONObject("datasets");
-
-            List<String> result = new ArrayList<>();
-            for (int i = 0; i < datasets.length(); i++) {
-                JSONObject data = datasets.getJSONObject(String.valueOf(i));
-                result.add(data.getString("data"));
+            if (param == "possitions_x") {
+                JSONObject datasets = jsonResponse.getJSONObject("possitions");
+                return String.valueOf(datasets.getJSONArray("lon"));
+            }
+            if (param == "possitions_y") {
+                JSONObject datasets = jsonResponse.getJSONObject("possitions");
+                return String.valueOf(datasets.getJSONArray("lat"));
+            }
+            if (param == "speed") {
+                return String.valueOf(jsonResponse.getJSONObject("datasets").getJSONObject("0").getJSONObject("data").getJSONArray("y"));
+            }
+            if (param == "voltage") {
+                return String.valueOf(jsonResponse.getJSONObject("datasets").getJSONObject("0").getJSONObject("data").getJSONArray("y"));
+            }
+            if (param == "time") {
+                return String.valueOf(jsonResponse.getJSONObject("datasets").getJSONObject("0").getJSONObject("data").getJSONArray("x"));
             }
 
-            return result;
-        } catch (JSONException | IOException e) {
-            e.printStackTrace();
             return null;
+        } catch (JSONException | IOException e) {
+//            e.printStackTrace();
+            return null;
+        } finally {
+            if (response != null) {
+                response.close();
+            }
         }
 
     }
@@ -331,7 +309,7 @@ public class ServiceWialon {
         long timeNow = System.currentTimeMillis() / 1000L;
         long timeLast = timeNow - unixTime;
         System.out.println("Пройденное время с последнего запроса uid: " + timeLast);
-        if ( timeLast > 420 || uid.equals("")) {
+        if (timeLast > 420 || uid.equals("")) {
             unixTime = timeNow;
             System.out.println("Выполнен новый запрос uid");
             uid = findEid();
