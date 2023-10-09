@@ -7,10 +7,10 @@ import springfox.documentation.swagger2.annotations.EnableSwagger2;
 
 @SpringBootApplication
 @EnableSwagger2
-public class SpringWialonApplication {
+public class Main {
 
     public static void main(String[] args) {
-        SpringApplication.run(SpringWialonApplication.class, args);
+        SpringApplication.run(Main.class, args);
     }
 
 }
