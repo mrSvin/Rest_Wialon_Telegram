@@ -39,16 +39,17 @@ public class DataService {
 
         List<List<String>> data = ppcRepository.getUniqueIdPpcLastData();
         for (int i = 0; i < data.size(); i++) {
-            mapData.setId_ppc(data.get(i).get(1));
-            mapData.setMileage(data.get(i).get(2));
-            mapData.setName(data.get(i).get(3));
-            mapData.setPos_x(data.get(i).get(4));
-            mapData.setPos_y(data.get(i).get(5));
-            mapData.setSpeed(data.get(i).get(6));
-            mapData.setTimestamp(data.get(i).get(7));
-            mapData.setVoltage(data.get(i).get(8));
-            mapData.setWabco(data.get(i).get(9));
-            result.add(mapData);
+            WabcoReportResponse response = new WabcoReportResponse();
+            response.setId_ppc(data.get(i).get(1));
+            response.setMileage(data.get(i).get(2));
+            response.setName(data.get(i).get(3));
+            response.setPos_x(data.get(i).get(4));
+            response.setPos_y(data.get(i).get(5));
+            response.setSpeed(data.get(i).get(6));
+            response.setTimestamp(data.get(i).get(7));
+            response.setVoltage(data.get(i).get(8));
+            response.setWabco(data.get(i).get(9));
+            result.add(response);
         }
 
         return result;
@@ -73,16 +74,22 @@ public class DataService {
         List<Object> posX = new ArrayList<>();
         List<Object> posY = new ArrayList<>();
         List<Object> speed = new ArrayList<>();
+        List<Object> timestamp = new ArrayList<>();
+        List<Object> mileage = new ArrayList<>();
         for (int i = 0; i < data.size(); i++) {
             voltage.add(data.get(i).get(0));
             posX.add(data.get(i).get(1));
             posY.add(data.get(i).get(2));
             speed.add(data.get(i).get(3));
+            timestamp.add(data.get(i).get(4));
+            mileage.add(data.get(i).get(5));
         }
         result.put("voltage", voltage);
         result.put("pos_x", posX);
         result.put("pos_y", posY);
         result.put("speed", speed);
+        result.put("timestamp", timestamp);
+        result.put("mileage_array", mileage);
 
         List<List<String>> report = ppcRepository.getReport(idTrailer, startTime, endTime);
         result.put("mileage", report.get(0).get(0));

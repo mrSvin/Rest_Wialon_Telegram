@@ -3,7 +3,7 @@ package SpringWialonApplication.model;
 import javax.persistence.*;
 
 @Entity
-@Table(name = "ppc")
+@Table(name = "ppc", indexes = {@Index(name = "idx_id_ppc", columnList = "id_ppc")})
 public class Ppc {
 
     @Id
